@@ -1,0 +1,17 @@
+# Folder internal VS Code
+.vscode/
+
+# File virtual environment Python
+venv/
+.venv/
+env/
+
+# Cache Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# File log dan file konfigurasi rahasia
+*.log
+.env

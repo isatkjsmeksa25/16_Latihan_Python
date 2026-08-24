@@ -1,0 +1,28 @@
+from Modul_Operasi_Bilangan.Ganjil_Genap import buka_menu_ganjil_genap
+from Modul_Operasi_Bilangan.Perulangan import buka_menu_perulangan
+from Modul_Kalkulasi_Geometri.Luas_Persegi_Panjang import buka_menu_persegi_panjang
+from Modul_Kalkulasi_Geometri.Luas_Segitiga import buka_menu_segitiga
+
+while True:
+    print("\n=== Menu Modul ===")
+    print("1. Menentukan Bilangan Ganjil atau Genap")
+    print("2. Menentukan Perulangan")
+    print("3. Menghitung Luas Persegi Panjang")
+    print("4. Menghitung Luas Segitiga")
+    print("5. Keluar")
+    
+    pilihan = input("Pilih menu (1-5): ")
+    
+    if pilihan == "1":
+        buka_menu_ganjil_genap()
+    elif pilihan == "2":
+        buka_menu_perulangan()
+    elif pilihan == "3":
+        buka_menu_persegi_panjang()
+    elif pilihan == "4":
+        buka_menu_segitiga()
+    elif pilihan == "5":
+        print("Program Selesai.")
+        break
+    else:
+        print("Pilihan tidak valid, coba lagi.")

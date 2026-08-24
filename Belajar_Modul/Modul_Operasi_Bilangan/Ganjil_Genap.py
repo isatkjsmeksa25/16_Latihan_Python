@@ -1,5 +1,5 @@
-"Menentukan Apakah Angka Ganjil atau Genap"
-
+def buka_menu_ganjil_genap():
+    """Menentukan Apakah Angka Ganjil atau Genap"""
 while True:
 	x = int(input("Silahkan Masukkan Angka: "))
 	if x % 2 == 0:

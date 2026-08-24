@@ -1,5 +1,9 @@
 def buka_menu_perulangan():
+
+    print("\n=== Menu Perulangan ===")
+
     while True:
+
         try:
             number = int(input("Masukkan angka (0 untuk keluar): "))
             

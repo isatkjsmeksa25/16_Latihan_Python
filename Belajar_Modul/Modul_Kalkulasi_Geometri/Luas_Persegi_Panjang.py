@@ -4,7 +4,9 @@ def hitung_luas_persegi_panjang(panjang, lebar):
     return luas
 
 def buka_menu_luas_persegi_panjang():
-    print("=== Kalkulator Luas Persegi Panjang ===")
+
+    print("\n=== Kalkulator Luas Persegi Panjang ===")
+    
     panjang = float(input("Masukkan panjang: "))
     lebar = float(input("Masukkan lebar: "))
     

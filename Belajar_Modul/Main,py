@@ -1,7 +1,7 @@
 from Modul_Operasi_Bilangan.Ganjil_Genap import buka_menu_ganjil_genap
 from Modul_Operasi_Bilangan.Perulangan import buka_menu_perulangan
-from Modul_Kalkulasi_Geometri.Luas_Persegi_Panjang import buka_menu_persegi_panjang
-from Modul_Kalkulasi_Geometri.Luas_Segitiga import buka_menu_segitiga
+from Modul_Kalkulasi_Geometri.Luas_Persegi_Panjang import buka_menu_luas_persegi_panjang
+from Modul_Kalkulasi_Geometri.Luas_Segitiga import buka_menu_luas_segitiga
 
 while True:
     print("\n=== Menu Modul ===")

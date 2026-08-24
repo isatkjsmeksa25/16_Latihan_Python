@@ -4,7 +4,9 @@ def hitung_luas_segitiga(alas, tinggi):
 
 # Input dari user
 def buka_menu_luas_segitiga():
+
     print("=== Kalkulator Luas Segitiga ===")
+    
     alas = float(input("Masukkan panjang alas segitiga: "))
     tinggi = float(input("Masukkan tinggi segitiga: "))
 

@@ -3,7 +3,7 @@ def hitung_luas_persegi_panjang(panjang, lebar):
     luas = panjang * lebar
     return luas
 
-def buka_menu_luas_persegi_panjang():
+def luas_persegi_panjang():
 
     print("\n=== Kalkulator Luas Persegi Panjang ===")
     

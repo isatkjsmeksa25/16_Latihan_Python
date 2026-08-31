@@ -1,4 +1,4 @@
-def buka_menu_perulangan():
+def perulangan():
 
     print("\n=== Menu Perulangan ===")
 

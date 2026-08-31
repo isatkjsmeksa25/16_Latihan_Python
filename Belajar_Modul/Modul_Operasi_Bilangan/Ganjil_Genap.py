@@ -1,4 +1,4 @@
-def buka_menu_ganjil_genap():
+def ganjil_genap():
     """Menentukan Apakah Angka Ganjil atau Genap"""
     while True:
         x = int(input("Silahkan Masukkan Angka: "))

@@ -3,7 +3,7 @@ def hitung_luas_segitiga(alas, tinggi):
     return luas
 
 # Input dari user
-def buka_menu_luas_segitiga():
+def luas_segitiga():
 
     print("=== Kalkulator Luas Segitiga ===")
     

@@ -322,8 +322,8 @@ sheet.append_row([
 # KONFIRMASI
 # ============================================================
 
-print("\n✅ Data berhasil disimpan ke MySQL!")
-print("✅ Data berhasil dikirim ke Google Spreadsheet!")
+print("\n✅ Data berhasil disimpan ke MySQL!✅")
+print("✅ Data berhasil dikirim ke Google Spreadsheet!✅")
 
 
 # ============================================================

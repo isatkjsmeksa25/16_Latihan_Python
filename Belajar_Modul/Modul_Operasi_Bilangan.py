@@ -25,4 +25,3 @@ if __name__ == "__main__":
         print(f"Pembagian {angka1} / {angka2} = {bagi(angka1, angka2)}")
     except ValueError:
         print("Error: Masukkan input berupa angka!")
-

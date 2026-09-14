@@ -5,6 +5,8 @@
 venv/
 .venv/
 env/
+# Mengabaikan file password database
+.env
 
 # Cache Python
 __pycache__/
@@ -17,3 +19,6 @@ __pycache__/
 .env
 
 python_mysql/Credentials.json
+
+# Mengabaikan seluruh folder yang berisi font kustom
+fonts/

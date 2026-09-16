@@ -1,85 +1,254 @@
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, font as tkfont
 import mysql.connector
+import gspread
 import os
+import sys
+import time
 import ctypes
 
 
-# ==========================================================
-# FORCE LOAD FONT MENGGUNAKAN WINDOWS API
-# ==========================================================
+# ============================================================
+# PATH PROJECT
+# ============================================================
 
-folder_sekarang = os.path.dirname(os.path.abspath(__file__))
-folder_font = os.path.join(folder_sekarang, "fonts")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-if os.path.exists(folder_font):
+BELAJAR_MODUL_DIR = os.path.join(BASE_DIR, "Belajar_Modul")
+CREDENTIALS_FILE = os.path.join(
+    BASE_DIR, "python_mysql", "Credentials.json"
+)
+FONT_FOLDER = os.path.join(BASE_DIR, "fonts")
+
+if BELAJAR_MODUL_DIR not in sys.path:
+    sys.path.insert(0, BELAJAR_MODUL_DIR)
+
+
+# ============================================================
+# IMPORT PROGRAM LAMA
+# ============================================================
+
+import Ganjil_Genap
+import Modul_Kalkulasi_Geometri
+import Modul_Operasi_Bilangan
+
+
+# ============================================================
+# KONFIGURASI MYSQL
+# ============================================================
+# Sengaja memakai konfigurasi MySQL yang sama dengan GUI lama
+# agar tidak muncul lagi "using password: NO".
+#
+# Jika password MySQL root nanti diganti, ubah nilai di bawah.
+# Jangan bagikan password tersebut ke orang lain.
+
+MYSQL_HOST = "localhost"
+MYSQL_USER = "root"
+MYSQL_PASSWORD = "1$@16DtBAseKiWi"
+MYSQL_DATABASE = "database_program"
+
+
+# ============================================================
+# GOOGLE SHEETS
+# ============================================================
+
+SPREADSHEET_NAME = "ISA_Database Program MySQL"
+WORKSHEET_NAME = "Sheet1"
+
+
+# ============================================================
+# FONT
+# ============================================================
+
+CUSTOM_FONT_FAMILY = "BingBoss"
+
+
+def load_custom_fonts():
+    if os.name != "nt":
+        return
+
+    if not os.path.exists(FONT_FOLDER):
+        print("Folder fonts tidak ditemukan:", FONT_FOLDER)
+        return
+
     FR_PRIVATE = 0x10
 
-    for nama_file in os.listdir(folder_font):
-        if nama_file.lower().endswith(('.otf', '.ttf')):
-            jalur_font_penuh = os.path.join(folder_font, nama_file)
+    for filename in os.listdir(FONT_FOLDER):
+        if filename.lower().endswith((".ttf", ".otf")):
+            path = os.path.join(FONT_FOLDER, filename)
 
-            ctypes.windll.gdi32.AddFontResourceExW(
-                jalur_font_penuh,
-                FR_PRIVATE,
-                0
-            )
+            try:
+                result = ctypes.windll.gdi32.AddFontResourceExW(
+                    path, FR_PRIVATE, 0
+                )
 
-            print(f"Berhasil memuat font: {nama_file}")
+                if result:
+                    print("Berhasil memuat font:", filename)
+                else:
+                    print("Gagal memuat font:", filename)
 
-else:
-    print(
-        f"Peringatan: Folder 'fonts' tidak ditemukan "
-        f"di {folder_font}!"
-    )
-
-
-# ==========================================================
-# KONEKSI DATABASE MYSQL
-# ==========================================================
-
-db = mysql.connector.connect(
-    host="localhost",
-    user="root",
-    password="1$@16DtBAseKiWi",
-    database="database_program"
-)
-
-cursor = db.cursor()
+            except Exception as e:
+                print("Error font:", filename, e)
 
 
-# ==========================================================
-# WINDOW UTAMA
-# ==========================================================
+load_custom_fonts()
+
+
+# ============================================================
+# WINDOW
+# ============================================================
 
 window = tk.Tk()
-
 window.title("Koleksi My Program Gweh")
 window.geometry("900x600")
 window.resizable(False, False)
 
 
-# ==========================================================
-# VARIABEL PASSWORD
-# ==========================================================
+def get_font(size=11, weight="normal"):
+    try:
+        return tkfont.Font(
+            family=CUSTOM_FONT_FAMILY,
+            size=size,
+            weight=weight
+        )
+    except Exception:
+        return tkfont.Font(
+            family="Arial",
+            size=size,
+            weight=weight
+        )
+
+
+FONT_NORMAL = get_font(11)
+FONT_BOLD = get_font(11, "bold")
+FONT_TITLE = get_font(24, "bold")
+FONT_SUBTITLE = get_font(12)
+FONT_RESULT = get_font(13, "bold")
+
+
+# ============================================================
+# SESSION
+# ============================================================
+
+username_login = ""
+nama_login = ""
+kelas_login = ""
+
+session_start_time = None
+session_timer_job = None
+session_saved = False
+
+timer_label = None
+
+
+# ============================================================
+# ENTRY REFERENCES
+# ============================================================
+
+entry_username = None
+entry_password_login = None
+button_show_login = None
+
+entry_username_daftar = None
+entry_password_daftar = None
+entry_konfirmasi = None
+button_password = None
+button_konfirmasi = None
+
+entry_nama = None
+entry_kelas = None
+
+entry_angka_ganjil = None
+entry_panjang = None
+entry_lebar = None
+entry_alas = None
+entry_tinggi = None
+entry_operasi_a = None
+entry_operasi_b = None
+
+
+# ============================================================
+# PASSWORD VISIBILITY
+# ============================================================
 
 password_login_visible = False
 password_daftar_visible = False
 konfirmasi_visible = False
 
 
-# ==========================================================
-# HAPUS SEMUA WIDGET DI WINDOW
-# ==========================================================
+# ============================================================
+# HELPER
+# ============================================================
 
 def clear_window():
     for widget in window.winfo_children():
         widget.destroy()
 
 
-# ==========================================================
-# TOGGLE PASSWORD LOGIN
-# ==========================================================
+def create_title(text):
+    tk.Label(
+        window,
+        text=text,
+        font=FONT_TITLE
+    ).pack(pady=(30, 5))
+
+
+def create_button(parent, text, command, width=25):
+    return tk.Button(
+        parent,
+        text=text,
+        command=command,
+        font=FONT_BOLD,
+        width=width,
+        height=2,
+        cursor="hand2"
+    )
+
+
+def get_mysql_connection():
+    return mysql.connector.connect(
+        host=MYSQL_HOST,
+        user=MYSQL_USER,
+        password=MYSQL_PASSWORD,
+        database=MYSQL_DATABASE
+    )
+
+
+# ============================================================
+# GOOGLE SHEETS
+# ============================================================
+
+def save_to_google_sheets(data):
+    try:
+        if not os.path.exists(CREDENTIALS_FILE):
+            raise FileNotFoundError(
+                "Credentials.json tidak ditemukan:\n"
+                + CREDENTIALS_FILE
+            )
+
+        gc = gspread.service_account(
+            filename=CREDENTIALS_FILE
+        )
+
+        spreadsheet = gc.open(SPREADSHEET_NAME)
+        worksheet = spreadsheet.worksheet(WORKSHEET_NAME)
+
+        worksheet.append_row(
+            data,
+            value_input_option="USER_ENTERED"
+        )
+
+        print("Data berhasil dikirim ke Google Sheets.")
+        return True
+
+    except Exception as error:
+        print("Google Sheets Error:", error)
+        return False
+
+
+# ============================================================
+# LOGIN PASSWORD SHOW/HIDE
+# ============================================================
 
 def toggle_password_login():
     global password_login_visible
@@ -88,16 +257,11 @@ def toggle_password_login():
         entry_password_login.config(show="*")
         button_show_login.config(text="👁")
         password_login_visible = False
-
     else:
         entry_password_login.config(show="")
         button_show_login.config(text="🙈")
         password_login_visible = True
 
-
-# ==========================================================
-# TOGGLE PASSWORD REGISTRASI
-# ==========================================================
 
 def toggle_password_daftar():
     global password_daftar_visible
@@ -106,16 +270,11 @@ def toggle_password_daftar():
         entry_password_daftar.config(show="*")
         button_password.config(text="👁")
         password_daftar_visible = False
-
     else:
         entry_password_daftar.config(show="")
         button_password.config(text="🙈")
         password_daftar_visible = True
 
-
-# ==========================================================
-# TOGGLE KONFIRMASI PASSWORD
-# ==========================================================
 
 def toggle_konfirmasi():
     global konfirmasi_visible
@@ -124,20 +283,20 @@ def toggle_konfirmasi():
         entry_konfirmasi.config(show="*")
         button_konfirmasi.config(text="👁")
         konfirmasi_visible = False
-
     else:
         entry_konfirmasi.config(show="")
         button_konfirmasi.config(text="🙈")
         konfirmasi_visible = True
 
 
-# ==========================================================
-# PROSES LOGIN
-# ==========================================================
+# ============================================================
+# LOGIN
+# ============================================================
 
 def login():
-
     global username_login
+    global session_start_time
+    global session_saved
 
     username = entry_username.get().strip()
     password = entry_password_login.get()
@@ -150,22 +309,31 @@ def login():
         return
 
     try:
+        conn = get_mysql_connection()
+        cursor = conn.cursor()
+
         cursor.execute(
             """
             SELECT id, username
             FROM users
-            WHERE username = %s AND password = %s
+            WHERE username = %s
+            AND password = %s
             """,
             (username, password)
         )
 
         user = cursor.fetchone()
 
-        if user:
+        cursor.close()
+        conn.close()
 
+        if user:
             username_login = username
 
-            tampilkan_dashboard(username_login)
+            session_start_time = time.perf_counter()
+            session_saved = False
+
+            tampilkan_data_pengguna()
 
         else:
             messagebox.showerror(
@@ -174,25 +342,21 @@ def login():
             )
 
     except mysql.connector.Error as error:
-
         messagebox.showerror(
             "Database Error",
-            f"Gagal mengakses database:\n{error}"
+            "Gagal terhubung ke MySQL.\n\n"
+            f"{error}"
         )
 
 
-# ==========================================================
-# PROSES REGISTRASI
-# ==========================================================
+# ============================================================
+# REGISTER
+# ============================================================
 
 def daftar_akun():
     username = entry_username_daftar.get().strip()
     password = entry_password_daftar.get()
     konfirmasi = entry_konfirmasi.get()
-
-    # ------------------------------
-    # CEK INPUT KOSONG
-    # ------------------------------
 
     if username == "" or password == "" or konfirmasi == "":
         messagebox.showwarning(
@@ -200,10 +364,6 @@ def daftar_akun():
             "Semua kolom harus diisi!"
         )
         return
-
-    # ------------------------------
-    # CEK PASSWORD
-    # ------------------------------
 
     if password != konfirmasi:
         messagebox.showerror(
@@ -213,9 +373,8 @@ def daftar_akun():
         return
 
     try:
-        # ------------------------------
-        # CEK USERNAME SUDAH ADA
-        # ------------------------------
+        conn = get_mysql_connection()
+        cursor = conn.cursor()
 
         cursor.execute(
             """
@@ -226,18 +385,15 @@ def daftar_akun():
             (username,)
         )
 
-        user = cursor.fetchone()
+        if cursor.fetchone():
+            cursor.close()
+            conn.close()
 
-        if user:
             messagebox.showerror(
                 "Registrasi Gagal",
                 "Username tersebut sudah digunakan!"
             )
             return
-
-        # ------------------------------
-        # MASUKKAN USER BARU
-        # ------------------------------
 
         cursor.execute(
             """
@@ -247,32 +403,31 @@ def daftar_akun():
             (username, password)
         )
 
-        db.commit()
+        conn.commit()
+
+        cursor.close()
+        conn.close()
 
         messagebox.showinfo(
             "Registrasi Berhasil",
-            f"Akun '{username}' berhasil dibuat!"
+            "Akun berhasil dibuat!\n\n"
+            "Silakan login menggunakan akun tersebut."
         )
 
-        # Setelah berhasil daftar,
-        # kembali ke halaman login.
         tampilkan_login()
 
     except mysql.connector.Error as error:
-        db.rollback()
-
         messagebox.showerror(
             "Database Error",
-            f"Gagal membuat akun:\n{error}"
+            f"Gagal menyimpan akun:\n{error}"
         )
 
 
-# ==========================================================
+# ============================================================
 # HALAMAN LOGIN
-# ==========================================================
+# ============================================================
 
 def tampilkan_login():
-
     global entry_username
     global entry_password_login
     global button_show_login
@@ -282,762 +437,855 @@ def tampilkan_login():
 
     clear_window()
 
-    # ------------------------------
-    # JUDUL
-    # ------------------------------
+    create_title("LOGIN")
 
-    judul = tk.Label(
+    tk.Label(
         window,
-        text="Koleksi My Program Gweh",
-        font=("BingBoss", 24)
-    )
+        text="Silakan login untuk menggunakan program.",
+        font=FONT_SUBTITLE
+    ).pack(pady=(0, 25))
 
-    judul.pack(pady=(70, 10))
+    frame = tk.Frame(window)
+    frame.pack()
 
-    subjudul = tk.Label(
-        window,
-        text="Login untuk melanjutkan",
-        font=("BingBoss", 12)
-    )
-
-    subjudul.pack(pady=(0, 35))
-
-    # ------------------------------
-    # USERNAME
-    # ------------------------------
-
-    label_username = tk.Label(
-        window,
+    tk.Label(
+        frame,
         text="Username",
-        font=("BingBoss", 11)
-    )
-
-    label_username.pack()
+        font=FONT_BOLD
+    ).grid(row=0, column=0, padx=10, pady=10, sticky="w")
 
     entry_username = tk.Entry(
-        window,
-        width=35,
-        font=("BingBoss", 12)
+        frame,
+        font=FONT_NORMAL,
+        width=30
     )
+    entry_username.grid(row=0, column=1, padx=10, pady=10)
 
-    entry_username.pack(pady=(5, 20))
-
-    # ------------------------------
-    # PASSWORD
-    # ------------------------------
-
-    label_password = tk.Label(
-        window,
+    tk.Label(
+        frame,
         text="Password",
-        font=("BingBoss", 11)
-    )
+        font=FONT_BOLD
+    ).grid(row=1, column=0, padx=10, pady=10, sticky="w")
 
-    label_password.pack()
-
-    password_frame = tk.Frame(window)
-    password_frame.pack(pady=(5, 25))
+    password_frame = tk.Frame(frame)
+    password_frame.grid(row=1, column=1, padx=10, pady=10)
 
     entry_password_login = tk.Entry(
         password_frame,
-        width=30,
-        font=("BingBoss", 12),
+        font=FONT_NORMAL,
+        width=25,
         show="*"
     )
-
     entry_password_login.pack(side="left")
 
     button_show_login = tk.Button(
         password_frame,
         text="👁",
-        font=("Arial", 10),
+        command=toggle_password_login,
         width=3,
-        command=toggle_password_login
+        cursor="hand2"
     )
+    button_show_login.pack(side="left", padx=(5, 0))
 
-    button_show_login.pack(
-        side="left",
-        padx=(5, 0)
-    )
-
-    # ------------------------------
-    # TOMBOL LOGIN
-    # ------------------------------
-
-    button_login = tk.Button(
+    create_button(
         window,
-        text="LOGIN",
-        width=20,
-        font=("BingBoss", 11),
-        command=login
-    )
+        "LOGIN",
+        login,
+        25
+    ).pack(pady=(25, 10))
 
-    button_login.pack(pady=(0, 15))
-
-    # ------------------------------
-    # DAFTAR
-    # ------------------------------
-
-    label_daftar = tk.Label(
+    create_button(
         window,
-        text="Belum punya akun?",
-        font=("BingBoss", 10)
-    )
+        "BUAT AKUN BARU",
+        tampilkan_register,
+        25
+    ).pack()
 
-    label_daftar.pack()
-
-    button_daftar = tk.Button(
-        window,
-        text="DAFTAR AKUN",
-        width=20,
-        font=("BingBoss", 10),
-        command=tampilkan_registrasi
-    )
-
-    button_daftar.pack(pady=(5, 0))
+    entry_username.focus()
 
 
-# ==========================================================
-# HALAMAN REGISTRASI
-# ==========================================================
+# ============================================================
+# HALAMAN REGISTER
+# ============================================================
 
-def tampilkan_registrasi():
-
+def tampilkan_register():
     global entry_username_daftar
     global entry_password_daftar
     global entry_konfirmasi
-
     global button_password
     global button_konfirmasi
-
     global password_daftar_visible
     global konfirmasi_visible
 
     password_daftar_visible = False
     konfirmasi_visible = False
 
-    username_login = ""
     clear_window()
 
-    # ------------------------------
-    # JUDUL
-    # ------------------------------
+    create_title("BUAT AKUN")
 
-    judul = tk.Label(
+    tk.Label(
         window,
-        text="Buat Akun Baru",
-        font=("BingBoss", 24)
-    )
+        text="Buat akun baru untuk menggunakan program.",
+        font=FONT_SUBTITLE
+    ).pack(pady=(0, 25))
 
-    judul.pack(pady=(55, 10))
+    frame = tk.Frame(window)
+    frame.pack()
 
-    subjudul = tk.Label(
-        window,
-        text="Daftarkan akun ke database",
-        font=("BingBoss", 12)
-    )
-
-    subjudul.pack(pady=(0, 30))
-
-    # ------------------------------
-    # USERNAME
-    # ------------------------------
-
-    label_username = tk.Label(
-        window,
+    tk.Label(
+        frame,
         text="Username",
-        font=("BingBoss", 11)
-    )
-
-    label_username.pack()
+        font=FONT_BOLD
+    ).grid(row=0, column=0, padx=10, pady=10, sticky="w")
 
     entry_username_daftar = tk.Entry(
-        window,
-        width=35,
-        font=("BingBoss", 12)
+        frame,
+        font=FONT_NORMAL,
+        width=30
     )
+    entry_username_daftar.grid(row=0, column=1, padx=10, pady=10)
 
-    entry_username_daftar.pack(pady=(5, 15))
-
-    # ------------------------------
-    # PASSWORD
-    # ------------------------------
-
-    label_password = tk.Label(
-        window,
+    tk.Label(
+        frame,
         text="Password",
-        font=("BingBoss", 11)
-    )
+        font=FONT_BOLD
+    ).grid(row=1, column=0, padx=10, pady=10, sticky="w")
 
-    label_password.pack()
-
-    password_frame = tk.Frame(window)
-    password_frame.pack(pady=(5, 15))
+    password_frame = tk.Frame(frame)
+    password_frame.grid(row=1, column=1, padx=10, pady=10)
 
     entry_password_daftar = tk.Entry(
         password_frame,
-        width=30,
-        font=("BingBoss", 12),
+        font=FONT_NORMAL,
+        width=25,
         show="*"
     )
-
     entry_password_daftar.pack(side="left")
 
     button_password = tk.Button(
         password_frame,
         text="👁",
-        font=("Arial", 10),
+        command=toggle_password_daftar,
         width=3,
-        command=toggle_password_daftar
+        cursor="hand2"
     )
+    button_password.pack(side="left", padx=(5, 0))
 
-    button_password.pack(
-        side="left",
-        padx=(5, 0)
-    )
-
-    # ------------------------------
-    # KONFIRMASI PASSWORD
-    # ------------------------------
-
-    label_konfirmasi = tk.Label(
-        window,
+    tk.Label(
+        frame,
         text="Konfirmasi Password",
-        font=("BingBoss", 11)
-    )
+        font=FONT_BOLD
+    ).grid(row=2, column=0, padx=10, pady=10, sticky="w")
 
-    label_konfirmasi.pack()
-
-    konfirmasi_frame = tk.Frame(window)
-    konfirmasi_frame.pack(pady=(5, 25))
+    confirm_frame = tk.Frame(frame)
+    confirm_frame.grid(row=2, column=1, padx=10, pady=10)
 
     entry_konfirmasi = tk.Entry(
-        konfirmasi_frame,
-        width=30,
-        font=("BingBoss", 12),
+        confirm_frame,
+        font=FONT_NORMAL,
+        width=25,
         show="*"
     )
-
     entry_konfirmasi.pack(side="left")
 
     button_konfirmasi = tk.Button(
-        konfirmasi_frame,
+        confirm_frame,
         text="👁",
-        font=("Arial", 10),
+        command=toggle_konfirmasi,
         width=3,
-        command=toggle_konfirmasi
+        cursor="hand2"
     )
+    button_konfirmasi.pack(side="left", padx=(5, 0))
 
-    button_konfirmasi.pack(
-        side="left",
-        padx=(5, 0)
-    )
-
-    # ------------------------------
-    # TOMBOL DAFTAR
-    # ------------------------------
-
-    button_daftar = tk.Button(
+    create_button(
         window,
-        text="DAFTAR",
-        width=20,
-        font=("BingBoss", 11),
-        command=daftar_akun
-    )
+        "DAFTAR",
+        daftar_akun,
+        25
+    ).pack(pady=(25, 10))
 
-    button_daftar.pack(pady=(0, 10))
-
-    # ------------------------------
-    # TOMBOL KEMBALI
-    # ------------------------------
-
-    button_kembali = tk.Button(
+    create_button(
         window,
-        text="KEMBALI",
-        width=20,
-        font=("BingBoss", 10),
-        command=tampilkan_login
-    )
+        "KEMBALI KE LOGIN",
+        tampilkan_login,
+        25
+    ).pack()
 
-    button_kembali.pack()
+    entry_username_daftar.focus()
 
-# ==========================================================
-# PROGRAM GANJIL / GENAP
-# ==========================================================
 
-def tampilkan_ganjil_genap():
+# ============================================================
+# DATA PENGGUNA
+# ============================================================
+
+def simpan_data_pengguna():
+    global nama_login
+    global kelas_login
+
+    nama = entry_nama.get().strip()
+    kelas = entry_kelas.get().strip()
+
+    if nama == "" or kelas == "":
+        messagebox.showwarning(
+            "Peringatan",
+            "Nama dan kelas harus diisi!"
+        )
+        return
+
+    nama_login = nama
+    kelas_login = kelas
+
+    tampilkan_dashboard(username_login)
+
+
+def tampilkan_data_pengguna():
+    global entry_nama
+    global entry_kelas
 
     clear_window()
 
-    # ------------------------------
-    # JUDUL
-    # ------------------------------
+    create_title("DATA PENGGUNA")
 
-    judul = tk.Label(
+    tk.Label(
         window,
-        text="Ganjil / Genap",
-        font=("BingBoss", 24)
+        text=f"Username: {username_login}",
+        font=FONT_SUBTITLE
+    ).pack(pady=(0, 20))
+
+    frame = tk.Frame(window)
+    frame.pack()
+
+    tk.Label(
+        frame,
+        text="Nama",
+        font=FONT_BOLD
+    ).grid(row=0, column=0, padx=10, pady=10)
+
+    entry_nama = tk.Entry(
+        frame,
+        font=FONT_NORMAL,
+        width=30
     )
+    entry_nama.grid(row=0, column=1, padx=10, pady=10)
 
-    judul.pack(pady=(80, 10))
+    tk.Label(
+        frame,
+        text="Kelas",
+        font=FONT_BOLD
+    ).grid(row=1, column=0, padx=10, pady=10)
 
+    entry_kelas = tk.Entry(
+        frame,
+        font=FONT_NORMAL,
+        width=30
+    )
+    entry_kelas.grid(row=1, column=1, padx=10, pady=10)
 
-    # ------------------------------
-    # PETUNJUK
-    # ------------------------------
-
-    petunjuk = tk.Label(
+    create_button(
         window,
-        text="Masukkan sebuah angka",
-        font=("BingBoss", 12)
-    )
+        "LANJUT KE DASHBOARD",
+        simpan_data_pengguna,
+        25
+    ).pack(pady=30)
 
-    petunjuk.pack(pady=(0, 25))
-
-
-    # ------------------------------
-    # INPUT ANGKA
-    # ------------------------------
-
-    entry_angka = tk.Entry(
-        window,
-        width=30,
-        font=("BingBoss", 14),
-        justify="center"
-    )
-
-    entry_angka.pack(pady=(0, 20))
+    entry_nama.focus()
 
 
-    # ------------------------------
-    # HASIL
-    # ------------------------------
+# ============================================================
+# TIMER
+# ============================================================
 
-    label_hasil = tk.Label(
-        window,
-        text="",
-        font=("BingBoss", 12)
-    )
+def get_session_seconds():
+    if session_start_time is None:
+        return 0
 
-    label_hasil.pack(pady=(10, 25))
+    return int(time.perf_counter() - session_start_time)
 
 
-    # ------------------------------
-    # FUNGSI CEK
-    # ------------------------------
+def format_timer(seconds):
+    jam = seconds // 3600
+    menit = (seconds % 3600) // 60
+    detik = seconds % 60
 
-    def cek_ganjil_genap():
+    return f"{jam:02d}:{menit:02d}:{detik:02d}"
 
-        angka = entry_angka.get().strip()
 
-        if angka == "":
-            messagebox.showwarning(
-                "Peringatan",
-                "Masukkan angka terlebih dahulu!"
+def update_timer():
+    global session_timer_job
+
+    if session_start_time is None:
+        return
+
+    try:
+        if timer_label is not None and timer_label.winfo_exists():
+            timer_label.config(
+                text=f"Durasi sesi: {format_timer(get_session_seconds())}"
             )
-            return
 
+            session_timer_job = window.after(
+                1000,
+                update_timer
+            )
+
+    except tk.TclError:
+        pass
+
+
+# ============================================================
+# SIMPAN SESSION
+# ============================================================
+
+def save_session(show_error=True):
+    global session_saved
+
+    if session_saved:
+        return True
+
+    if (
+        session_start_time is None
+        or username_login == ""
+        or nama_login == ""
+        or kelas_login == ""
+    ):
+        return False
+
+    timer_seconds = get_session_seconds()
+
+    try:
+        conn = get_mysql_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            INSERT INTO program
+            (
+                username,
+                nama,
+                kelas,
+                timer
+            )
+            VALUES
+            (%s, %s, %s, %s)
+            """,
+            (
+                username_login,
+                nama_login,
+                kelas_login,
+                timer_seconds
+            )
+        )
+
+        conn.commit()
+
+        program_id = cursor.lastrowid
+
+        cursor.close()
+        conn.close()
+
+        print("Data sesi berhasil disimpan ke MySQL.")
+
+        sheets_ok = save_to_google_sheets(
+            [
+                program_id,
+                username_login,
+                nama_login,
+                kelas_login,
+                timer_seconds
+            ]
+        )
+
+        if sheets_ok:
+            print("Data sesi berhasil disimpan ke Google Sheets.")
+        else:
+            print("MySQL berhasil, tetapi Google Sheets gagal.")
+
+        session_saved = True
+        return True
+
+    except mysql.connector.Error as error:
+        print("MySQL Error:", error)
+
+        if show_error:
+            messagebox.showerror(
+                "Database Error",
+                "Data sesi gagal disimpan ke MySQL.\n\n"
+                f"{error}"
+            )
+
+        return False
+
+
+# ============================================================
+# LOGOUT
+# ============================================================
+
+def logout():
+    global session_timer_job
+    global session_start_time
+    global username_login
+    global nama_login
+    global kelas_login
+
+    if not messagebox.askyesno(
+        "Logout",
+        "Yakin ingin logout?\n\n"
+        "Timer akan dihentikan dan data sesi disimpan."
+    ):
+        return
+
+    if session_timer_job is not None:
         try:
-            angka = int(angka)
+            window.after_cancel(session_timer_job)
+        except Exception:
+            pass
+
+        session_timer_job = None
+
+    save_session()
+
+    session_start_time = None
+    username_login = ""
+    nama_login = ""
+    kelas_login = ""
+
+    tampilkan_login()
+
+
+# ============================================================
+# DASHBOARD
+# ============================================================
+
+def tampilkan_dashboard(username=None):
+    global timer_label
+
+    clear_window()
+
+    create_title("DASHBOARD")
+
+    tk.Label(
+        window,
+        text=f"Selamat datang, {nama_login}!",
+        font=get_font(14, "bold")
+    ).pack()
+
+    tk.Label(
+        window,
+        text=f"Username: {username_login} | Kelas: {kelas_login}",
+        font=get_font(10)
+    ).pack(pady=(2, 0))
+
+    timer_label = tk.Label(
+        window,
+        text="Durasi sesi: 00:00:00",
+        font=FONT_BOLD
+    )
+    timer_label.pack(pady=10)
+
+    frame = tk.Frame(window)
+    frame.pack(pady=10)
+
+    buttons = [
+        ("1. Ganjil / Genap", tampilkan_ganjil_genap),
+        ("2. Luas Persegi Panjang", tampilkan_persegi_panjang),
+        ("3. Luas Segitiga", tampilkan_segitiga),
+        ("4. Tambah", tampilkan_tambah),
+        ("5. Kurang", tampilkan_kurang),
+        ("6. Kali", tampilkan_kali),
+        ("7. Bagi", tampilkan_bagi),
+    ]
+
+    for index, (text, command) in enumerate(buttons):
+        row = index // 2
+        column = index % 2
+
+        create_button(
+            frame,
+            text,
+            command,
+            28
+        ).grid(
+            row=row,
+            column=column,
+            padx=8,
+            pady=6
+        )
+
+    create_button(
+        frame,
+        "LOGOUT",
+        logout,
+        28
+    ).grid(
+        row=4,
+        column=0,
+        columnspan=2,
+        padx=8,
+        pady=8
+    )
+    update_timer()
+
+
+# ============================================================
+# HALAMAN PROGRAM
+# ============================================================
+
+def program_page(title):
+    clear_window()
+    create_title(title)
+
+    frame = tk.Frame(window)
+    frame.pack(pady=20)
+
+    return frame
+
+
+def add_back_button():
+    create_button(
+        window,
+        "KEMBALI KE DASHBOARD",
+        tampilkan_dashboard,
+        25
+    ).pack(pady=20)
+
+
+# ============================================================
+# 1. GANJIL / GENAP
+# ============================================================
+
+def tampilkan_ganjil_genap():
+    global entry_angka_ganjil
+
+    frame = program_page("CEK GANJIL / GENAP")
+
+    tk.Label(
+        frame,
+        text="Masukkan angka:",
+        font=FONT_BOLD
+    ).grid(row=0, column=0, padx=10, pady=10)
+
+    entry_angka_ganjil = tk.Entry(
+        frame,
+        font=FONT_NORMAL,
+        width=25
+    )
+    entry_angka_ganjil.grid(row=0, column=1, padx=10, pady=10)
+
+    hasil = tk.Label(
+        window,
+        text="Hasil akan muncul di sini.",
+        font=FONT_RESULT
+    )
+    hasil.pack(pady=10)
+
+    def proses():
+        try:
+            angka = int(entry_angka_ganjil.get())
+
+            # Memakai fungsi dari program lama
+            hasil.config(
+                text=Ganjil_Genap.cek_ganjil_genap(angka)
+            )
 
         except ValueError:
             messagebox.showerror(
-                "Input Tidak Valid",
-                "Input harus berupa angka!"
+                "Input Error",
+                "Masukkan bilangan bulat."
             )
-            return
-
-        if angka % 2 == 0:
-            label_hasil.config(
-                text=f"Angka {angka} adalah Bilangan Genap"
-            )
-
-        else:
-            label_hasil.config(
-                text=f"Angka {angka} adalah Bilangan Ganjil"
+        except AttributeError:
+            messagebox.showerror(
+                "Module Error",
+                "Fungsi cek_ganjil_genap(x) belum ada "
+                "di Ganjil_Genap.py."
             )
 
-
-    # ------------------------------
-    # TOMBOL CEK
-    # ------------------------------
-
-    button_cek = tk.Button(
+    create_button(
         window,
-        text="CEK",
-        width=20,
-        font=("BingBoss", 11),
-        command=cek_ganjil_genap
+        "CEK",
+        proses,
+        25
+    ).pack(pady=10)
+
+    add_back_button()
+
+
+# ============================================================
+# 2. PERSEGI PANJANG
+# ============================================================
+
+def tampilkan_persegi_panjang():
+    global entry_panjang
+    global entry_lebar
+
+    frame = program_page("LUAS PERSEGI PANJANG")
+
+    tk.Label(
+        frame,
+        text="Panjang:",
+        font=FONT_BOLD
+    ).grid(row=0, column=0, padx=10, pady=10)
+
+    entry_panjang = tk.Entry(
+        frame,
+        font=FONT_NORMAL,
+        width=25
     )
+    entry_panjang.grid(row=0, column=1, padx=10, pady=10)
 
-    button_cek.pack()
+    tk.Label(
+        frame,
+        text="Lebar:",
+        font=FONT_BOLD
+    ).grid(row=1, column=0, padx=10, pady=10)
 
+    entry_lebar = tk.Entry(
+        frame,
+        font=FONT_NORMAL,
+        width=25
+    )
+    entry_lebar.grid(row=1, column=1, padx=10, pady=10)
 
-    # ------------------------------
-    # TOMBOL KEMBALI
-    # ------------------------------
-
-    button_kembali = tk.Button(
+    hasil = tk.Label(
         window,
-        text="KEMBALI",
-        width=20,
-        font=("BingBoss", 10),
-        command=lambda: tampilkan_dashboard(username_login)
+        text="Hasil akan muncul di sini.",
+        font=FONT_RESULT
     )
+    hasil.pack(pady=10)
 
-    button_kembali.pack(pady=(30, 0))
+    def proses():
+        try:
+            panjang = float(entry_panjang.get())
+            lebar = float(entry_lebar.get())
 
-# ==========================================================
-# DASHBOARD
-# ==========================================================
+            nilai = Modul_Kalkulasi_Geometri.hitung_luas_persegi_panjang(
+                panjang,
+                lebar
+            )
 
-def tampilkan_dashboard(username):
+            hasil.config(text=f"Luas = {nilai}")
 
-    clear_window()
+        except ValueError:
+            messagebox.showerror(
+                "Input Error",
+                "Masukkan angka yang valid."
+            )
 
-    # ------------------------------
-    # HEADER
-    # ------------------------------
-
-    header = tk.Frame(window)
-    header.pack(fill="x", padx=30, pady=(25, 10))
-
-    judul = tk.Label(
-        header,
-        text="Koleksi My Program Gweh",
-        font=("BingBoss", 22)
-    )
-
-    judul.pack(side="left")
-
-    label_user = tk.Label(
-        header,
-        text=f"👤 {username}",
-        font=("BingBoss", 11)
-    )
-
-    label_user.pack(side="right")
-
-
-    # ------------------------------
-    # JUDUL PROGRAM
-    # ------------------------------
-
-    label_program = tk.Label(
+    create_button(
         window,
-        text="Daftar Program",
-        font=("BingBoss", 16)
-    )
+        "HITUNG",
+        proses,
+        25
+    ).pack(pady=10)
 
-    label_program.pack(pady=(20, 20))
-
-
-    # ------------------------------
-    # FRAME PROGRAM
-    # ------------------------------
-
-    frame_program = tk.Frame(window)
-    frame_program.pack()
+    add_back_button()
 
 
-    # ------------------------------
-    # FUNGSI SEMENTARA TOMBOL
-    # ------------------------------
+# ============================================================
+# 3. SEGITIGA
+# ============================================================
 
-    def program_belum_dihubungkan(nama_program):
-        messagebox.showinfo(
-            "Program",
-            f"{nama_program}\n\n"
-            "Program akan dihubungkan pada tahap berikutnya."
-        )
+def tampilkan_segitiga():
+    global entry_alas
+    global entry_tinggi
 
-
-    # ------------------------------
-    # PROGRAM 1
-    # ------------------------------
-
-    frame1 = tk.Frame(
-        frame_program,
-        width=300,
-        height=100,
-        relief="solid",
-        borderwidth=1
-    )
-
-    frame1.grid(
-        row=0,
-        column=0,
-        padx=10,
-        pady=10
-    )
-
-    frame1.pack_propagate(False)
+    frame = program_page("LUAS SEGITIGA")
 
     tk.Label(
-        frame1,
-        text="Ganjil / Genap",
-        font=("BingBoss", 12)
-    ).pack(pady=(12, 5))
+        frame,
+        text="Alas:",
+        font=FONT_BOLD
+    ).grid(row=0, column=0, padx=10, pady=10)
 
-    tk.Button(
-        frame1,
-        text="BUKA",
-        width=15,
-        font=("BingBoss", 9),
-        command=tampilkan_ganjil_genap
-    ).pack()
-
-
-    # ------------------------------
-    # PROGRAM 2
-    # ------------------------------
-
-    frame2 = tk.Frame(
-        frame_program,
-        width=300,
-        height=100,
-        relief="solid",
-        borderwidth=1
+    entry_alas = tk.Entry(
+        frame,
+        font=FONT_NORMAL,
+        width=25
     )
-
-    frame2.grid(
-        row=0,
-        column=1,
-        padx=10,
-        pady=10
-    )
-
-    frame2.pack_propagate(False)
+    entry_alas.grid(row=0, column=1, padx=10, pady=10)
 
     tk.Label(
-        frame2,
-        text="Luas Persegi Panjang",
-        font=("BingBoss", 12)
-    ).pack(pady=(12, 5))
+        frame,
+        text="Tinggi:",
+        font=FONT_BOLD
+    ).grid(row=1, column=0, padx=10, pady=10)
 
-    tk.Button(
-        frame2,
-        text="BUKA",
-        width=15,
-        font=("BingBoss", 9),
-        command=lambda: program_belum_dihubungkan(
-            "Luas Persegi Panjang"
-        )
-    ).pack()
-
-
-    # ------------------------------
-    # PROGRAM 3
-    # ------------------------------
-
-    frame3 = tk.Frame(
-        frame_program,
-        width=300,
-        height=100,
-        relief="solid",
-        borderwidth=1
+    entry_tinggi = tk.Entry(
+        frame,
+        font=FONT_NORMAL,
+        width=25
     )
+    entry_tinggi.grid(row=1, column=1, padx=10, pady=10)
 
-    frame3.grid(
-        row=1,
-        column=0,
-        padx=10,
-        pady=10
-    )
-
-    frame3.pack_propagate(False)
-
-    tk.Label(
-        frame3,
-        text="Luas Segitiga",
-        font=("BingBoss", 12)
-    ).pack(pady=(12, 5))
-
-    tk.Button(
-        frame3,
-        text="BUKA",
-        width=15,
-        font=("BingBoss", 9),
-        command=lambda: program_belum_dihubungkan(
-            "Luas Segitiga"
-        )
-    ).pack()
-
-
-    # ------------------------------
-    # PROGRAM 4
-    # ------------------------------
-
-    frame4 = tk.Frame(
-        frame_program,
-        width=300,
-        height=100,
-        relief="solid",
-        borderwidth=1
-    )
-
-    frame4.grid(
-        row=1,
-        column=1,
-        padx=10,
-        pady=10
-    )
-
-    frame4.pack_propagate(False)
-
-    tk.Label(
-        frame4,
-        text="Penjumlahan",
-        font=("BingBoss", 12)
-    ).pack(pady=(12, 5))
-
-    tk.Button(
-        frame4,
-        text="BUKA",
-        width=15,
-        font=("BingBoss", 9),
-        command=lambda: program_belum_dihubungkan(
-            "Penjumlahan"
-        )
-    ).pack()
-
-
-    # ------------------------------
-    # PROGRAM 5
-    # ------------------------------
-
-    frame5 = tk.Frame(
-        frame_program,
-        width=300,
-        height=100,
-        relief="solid",
-        borderwidth=1
-    )
-
-    frame5.grid(
-        row=2,
-        column=0,
-        padx=10,
-        pady=10
-    )
-
-    frame5.pack_propagate(False)
-
-    tk.Label(
-        frame5,
-        text="Pengurangan",
-        font=("BingBoss", 12)
-    ).pack(pady=(12, 5))
-
-    tk.Button(
-        frame5,
-        text="BUKA",
-        width=15,
-        font=("BingBoss", 9),
-        command=lambda: program_belum_dihubungkan(
-            "Pengurangan"
-        )
-    ).pack()
-
-
-    # ------------------------------
-    # PROGRAM 6
-    # ------------------------------
-
-    frame6 = tk.Frame(
-        frame_program,
-        width=300,
-        height=100,
-        relief="solid",
-        borderwidth=1
-    )
-
-    frame6.grid(
-        row=2,
-        column=1,
-        padx=10,
-        pady=10
-    )
-
-    frame6.pack_propagate(False)
-
-    tk.Label(
-        frame6,
-        text="Perkalian",
-        font=("BingBoss", 12)
-    ).pack(pady=(12, 5))
-
-    tk.Button(
-        frame6,
-        text="BUKA",
-        width=15,
-        font=("BingBoss", 9),
-        command=lambda: program_belum_dihubungkan(
-            "Perkalian"
-        )
-    ).pack()
-
-
-    # ------------------------------
-    # PROGRAM 7
-    # ------------------------------
-
-    frame7 = tk.Frame(
-        frame_program,
-        width=300,
-        height=100,
-        relief="solid",
-        borderwidth=1
-    )
-
-    frame7.grid(
-        row=3,
-        column=0,
-        padx=10,
-        pady=10
-    )
-
-    frame7.pack_propagate(False)
-
-    tk.Label(
-        frame7,
-        text="Pembagian",
-        font=("BingBoss", 12)
-    ).pack(pady=(12, 5))
-
-    tk.Button(
-        frame7,
-        text="BUKA",
-        width=15,
-        font=("BingBoss", 9),
-        command=lambda: program_belum_dihubungkan(
-            "Pembagian"
-        )
-    ).pack()
-
-
-    # ------------------------------
-    # LOGOUT
-    # ------------------------------
-
-    button_logout = tk.Button(
+    hasil = tk.Label(
         window,
-        text="LOGOUT",
-        width=20,
-        font=("BingBoss", 10),
-        command=tampilkan_login
+        text="Hasil akan muncul di sini.",
+        font=FONT_RESULT
+    )
+    hasil.pack(pady=10)
+
+    def proses():
+        try:
+            alas = float(entry_alas.get())
+            tinggi = float(entry_tinggi.get())
+
+            nilai = Modul_Kalkulasi_Geometri.hitung_luas_segitiga(
+                alas,
+                tinggi
+            )
+
+            hasil.config(text=f"Luas = {nilai}")
+
+        except ValueError:
+            messagebox.showerror(
+                "Input Error",
+                "Masukkan angka yang valid."
+            )
+
+    create_button(
+        window,
+        "HITUNG",
+        proses,
+        25
+    ).pack(pady=10)
+
+    add_back_button()
+
+
+# ============================================================
+# 4-7. OPERASI BILANGAN
+# ============================================================
+
+def buat_halaman_operasi(judul, fungsi):
+    global entry_operasi_a
+    global entry_operasi_b
+
+    frame = program_page(judul)
+
+    tk.Label(
+        frame,
+        text="Bilangan pertama:",
+        font=FONT_BOLD
+    ).grid(row=0, column=0, padx=10, pady=10)
+
+    entry_operasi_a = tk.Entry(
+        frame,
+        font=FONT_NORMAL,
+        width=25
+    )
+    entry_operasi_a.grid(row=0, column=1, padx=10, pady=10)
+
+    tk.Label(
+        frame,
+        text="Bilangan kedua:",
+        font=FONT_BOLD
+    ).grid(row=1, column=0, padx=10, pady=10)
+
+    entry_operasi_b = tk.Entry(
+        frame,
+        font=FONT_NORMAL,
+        width=25
+    )
+    entry_operasi_b.grid(row=1, column=1, padx=10, pady=10)
+
+    hasil = tk.Label(
+        window,
+        text="Hasil akan muncul di sini.",
+        font=FONT_RESULT
+    )
+    hasil.pack(pady=10)
+
+    def proses():
+        try:
+            a = float(entry_operasi_a.get())
+            b = float(entry_operasi_b.get())
+
+            nilai = fungsi(a, b)
+
+            hasil.config(text=f"Hasil = {nilai}")
+
+        except ValueError:
+            messagebox.showerror(
+                "Input Error",
+                "Masukkan angka yang valid."
+            )
+
+    create_button(
+        window,
+        "HITUNG",
+        proses,
+        25
+    ).pack(pady=10)
+
+    add_back_button()
+
+
+def tampilkan_tambah():
+    buat_halaman_operasi(
+        "PENJUMLAHAN",
+        Modul_Operasi_Bilangan.tambah
     )
 
-    button_logout.pack(pady=(5, 10))
-    
-# ==========================================================
-# MULAI DARI HALAMAN LOGIN
-# ==========================================================
+
+def tampilkan_kurang():
+    buat_halaman_operasi(
+        "PENGURANGAN",
+        Modul_Operasi_Bilangan.kurang
+    )
+
+
+def tampilkan_kali():
+    buat_halaman_operasi(
+        "PERKALIAN",
+        Modul_Operasi_Bilangan.kali
+    )
+
+
+def tampilkan_bagi():
+    buat_halaman_operasi(
+        "PEMBAGIAN",
+        Modul_Operasi_Bilangan.bagi
+    )
+
+
+# ============================================================
+# CLOSE WINDOW
+# ============================================================
+
+def on_closing():
+    global session_timer_job
+
+    if session_start_time is None:
+        window.destroy()
+        return
+
+    if not messagebox.askyesno(
+        "Keluar Program",
+        "Sesi masih berjalan.\n\n"
+        "Keluar dan simpan data sesi?"
+    ):
+        return
+
+    if session_timer_job is not None:
+        try:
+            window.after_cancel(session_timer_job)
+        except Exception:
+            pass
+
+        session_timer_job = None
+
+    save_session(show_error=True)
+    window.destroy()
+
+
+window.protocol(
+    "WM_DELETE_WINDOW",
+    on_closing
+)
+
+
+# ============================================================
+# START
+# ============================================================
 
 tampilkan_login()
-
-
-# ==========================================================
-# JALANKAN APLIKASI
-# ==========================================================
-
 window.mainloop()

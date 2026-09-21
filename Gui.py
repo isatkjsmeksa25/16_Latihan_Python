@@ -36,11 +36,6 @@ import Modul_Operasi_Bilangan
 # ============================================================
 # KONFIGURASI MYSQL
 # ============================================================
-# Sengaja memakai konfigurasi MySQL yang sama dengan GUI lama
-# agar tidak muncul lagi "using password: NO".
-#
-# Jika password MySQL root nanti diganti, ubah nilai di bawah.
-# Jangan bagikan password tersebut ke orang lain.
 
 MYSQL_HOST = "localhost"
 MYSQL_USER = "root"
@@ -61,7 +56,7 @@ WORKSHEET_NAME = "Sheet1"
 # ============================================================
 
 CUSTOM_FONT_FAMILY = "BingBoss"
-
+TITLE_FONT_FAMILY = "Enjoy Journey"
 
 def load_custom_fonts():
     if os.name != "nt":
@@ -122,6 +117,10 @@ def get_font(size=11, weight="normal"):
 FONT_NORMAL = get_font(11)
 FONT_BOLD = get_font(11, "bold")
 FONT_TITLE = get_font(24, "bold")
+FONT_APP_TITLE = tkfont.Font(
+    family=TITLE_FONT_FAMILY,
+    size=18
+)
 FONT_SUBTITLE = get_font(12)
 FONT_RESULT = get_font(13, "bold")
 
@@ -437,6 +436,12 @@ def tampilkan_login():
 
     clear_window()
 
+    tk.Label(
+        window,
+        text="Koleksi My Program Gweh",
+        font=FONT_APP_TITLE
+    ).pack(pady=(20, 5))
+    
     create_title("LOGIN")
 
     tk.Label(
